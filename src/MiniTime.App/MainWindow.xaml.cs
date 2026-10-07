@@ -53,6 +53,7 @@ public partial class MainWindow : Window
             Abas.Items.Add(aba);
         }
         Abas.SelectedItem = aba;
+        AtualizarBoasVindas();
     }
 
     private UIElement Cabecalho(string titulo, string chave)
@@ -69,6 +70,13 @@ public partial class MainWindow : Window
     {
         if (_abas.Remove(chave, out var aba)) Abas.Items.Remove(aba);
         AtualizarBoasVindas();
+    }
+
+    /// <summary>Abre uma tela pela chave do menu (usado por --abrir=chave na linha de comando).</summary>
+    public void AbrirPorChave(string chave)
+    {
+        var e = Menus.Itens().FirstOrDefault(i => i.Chave == chave);
+        if (e is not null) AbrirAba(e.Titulo.Replace("_", "").TrimEnd('…'), e.Chave, e.Criar);
     }
 
     public void Status(string texto) => TxtStatus.Text = texto;

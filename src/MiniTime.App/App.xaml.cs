@@ -20,7 +20,10 @@ public partial class App : Application
             Shutdown(1);
             return;
         }
-        new MainWindow().Show();
+        var janela = new MainWindow();
+        janela.Show();
+        foreach (var a in e.Args.Where(a => a.StartsWith("--abrir=", StringComparison.Ordinal)))
+            janela.AbrirPorChave(a["--abrir=".Length..]);
     }
 
     private static void OnErroNaoTratado(object sender, DispatcherUnhandledExceptionEventArgs e)

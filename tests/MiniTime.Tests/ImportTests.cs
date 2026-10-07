@@ -48,3 +48,19 @@ public class ImportTests
         Assert.Throws<FileNotFoundException>(() => new MdbImporter(db).Importar(new MdbImportOptions { MdbPath = @"C:\nao\existe.mdb" }));
     }
 }
+
+public class FerramentasDev
+{
+    /// <summary>Gera um SQLite real a partir do MDB para testar a interface (somente quando MINITIME_OUT_DB está definida).</summary>
+    [Fact]
+    [Trait("Category", "Tool")]
+    public void Gera_banco_de_desenvolvimento()
+    {
+        var saida = Environment.GetEnvironmentVariable("MINITIME_OUT_DB");
+        var mdb = Environment.GetEnvironmentVariable("MINITIME_TEST_MDB") ?? @"C:\Program Files (x86)\Dimep\MiniTime\DIMEP.MDB";
+        if (string.IsNullOrEmpty(saida) || !File.Exists(mdb)) return;
+        if (File.Exists(saida)) File.Delete(saida);
+        var db = new MiniTimeDb(saida);
+        new MdbImporter(db).Importar(new MdbImportOptions { MdbPath = mdb, Senha = Environment.GetEnvironmentVariable("MINITIME_MDB_PWD") ?? "" });
+    }
+}

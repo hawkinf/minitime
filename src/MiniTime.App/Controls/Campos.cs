@@ -22,7 +22,26 @@ public sealed class HoraConverter : IValueConverter
     }
 }
 
-public enum TipoCampo { Texto, Inteiro, Hora, Booleano, Data, Escolha }
+/// <summary>Minutos (int) ⇄ "HH:MM"; vazio = 0.</summary>
+public sealed class MinutosConverter : IValueConverter
+{
+    public static readonly MinutosConverter Instance = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is int m ? Hora.Minutos(m) : "";
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        var s = (value as string ?? "").Trim();
+        if (s.Length == 0) return 0;
+        var p = s.Split(':');
+        if (p.Length == 2 && int.TryParse(p[0], out var h) && int.TryParse(p[1], out var m) && h >= 0 && m is >= 0 and < 60) return h * 60 + m;
+        if (p.Length == 1 && int.TryParse(p[0], out var h2) && h2 >= 0) return h2 * 60;
+        throw new FormatException("Duração inválida. Use HH:MM (ex.: 44:00).");
+    }
+}
+
+public enum TipoCampo { Texto, Inteiro, Hora, Duracao, Booleano, Data, Escolha }
 
 /// <summary>Descrição de um campo do formulário de cadastro.</summary>
 public sealed class Campo

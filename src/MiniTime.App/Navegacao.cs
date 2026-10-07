@@ -20,6 +20,12 @@ public static class Menus
 {
     public static List<MenuEntrada> Itens() =>
     [
+        new("_Arquivos", "_Cartões…", "cartoes", () => new FuncionariosView()),
+        new("_Arquivos", "_Horários de Trabalho…", "horarios", () => new HorariosView()),
+        new("_Arquivos", "_Jornadas…", "jornadas", () => new JornadasView()),
+        new("_Arquivos", "_Feriados…", "feriados", () => new FeriadosView()),
+        new("_Arquivos", "_Justificativas…", "justificativas", () => new JustificativasView()),
+        new("_Arquivos", "_Alarmes (sirene)…", "alarmes", () => new AlarmesView()),
         new("_Utilitários", "_Importar dados do MDB antigo…", "importar", () => new ImportacaoMdbView()),
     ];
 }

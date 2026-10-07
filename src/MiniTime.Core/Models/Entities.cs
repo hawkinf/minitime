@@ -19,7 +19,13 @@ public sealed class Funcionario
     public int SentidoMudancaDataDiaLivre { get; set; }
     public string? Senha { get; set; }
 
-    [NotMapped] public string CodigoCurto => Util.CodigoCartao.Curto(Codigo);
+    /// <summary>Número do cartão sem zeros à esquerda (é o que o usuário digita/vê).</summary>
+    [NotMapped]
+    public string CodigoCurto
+    {
+        get => Util.CodigoCartao.Curto(Codigo);
+        set => Codigo = Util.CodigoCartao.Normalizar(value);
+    }
 }
 
 [Table("Horarios")]
