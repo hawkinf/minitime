@@ -1,6 +1,6 @@
 # MiniTime
 
-Reescrita em **C# / WPF (.NET 8) + SQLite** do MiniTime (Dimep), um programa de controle de cartão de ponto
+Reescrita em **C# / WPF (.NET 10) + SQLite** do MiniTime (Dimep), um programa de controle de cartão de ponto
 feito originalmente em VB6 para relógios ligados à porta serial (Mini Point). Agora funciona com adaptador
 USB‑serial e banco SQLite, e traz um módulo para **importar o banco MDB (Access) antigo**.
 
@@ -38,7 +38,7 @@ Menu **Utilitários → Importar dados do MDB antigo**. O arquivo original nunca
 pasta temporária e lido em modo somente leitura. A importação é atômica (tudo ou nada) e registros inválidos
 (por exemplo marcações com data absurda) vão para a tabela `ImportacaoQuarentena` em vez de se perderem.
 
-Se o MDB tiver senha, informe-a na tela (fica salva só no computador do usuário, em `%APPDATA%\MiniTime`) ou na
+Se o MDB tiver senha, informe-a na tela (fica salva só no computador do usuário, em `%APPDATA%\MiniTime`, cifrada com DPAPI) ou na
 variável de ambiente `MINITIME_MDB_PWD`. **Nenhuma senha é versionada neste repositório.**
 
 ## Estrutura
@@ -57,3 +57,14 @@ docs/spec               especificações reconstruídas (apuração, protocolo, 
 
 O banco fica em `%LOCALAPPDATA%\MiniTime\minitime.db`; logs em `%LOCALAPPDATA%\MiniTime\logs`.
 A variável `MINITIME_DB` aponta o programa para outro arquivo de banco (testes/suporte).
+
+## Segurança
+
+- Enquanto **nenhum usuário** estiver cadastrado, o acesso é livre (como no programa original): crie um administrador em
+  *Arquivos → Senhas* assim que possível. Com usuários, o login pede senha (mínimo de 6 caracteres) e bloqueia por alguns
+  instantes após 3 falhas seguidas, mesmo se o programa for reaberto.
+- Os níveis (Consulta / Completo / Administrador) valem também dentro das operações sensíveis (backup, restauração,
+  reparo, importação, usuários), e não só nos itens de menu.
+- O banco SQLite **não é criptografado** (contém nome, RG e modelos biométricos): proteja a pasta de dados e os backups.
+- *Reparar* grava antes uma cópia `minitime-antes-do-reparo-*.db` ao lado do banco e não altera nada se a verificação de
+  integridade falhar.

@@ -2,7 +2,7 @@ using Microsoft.Data.Sqlite;
 
 namespace MiniTime.Data;
 
-public sealed record ResultadoReparo(bool Integro, List<string> Correcoes, List<string> Problemas);
+public sealed record ResultadoReparo(bool Integro, List<string> Correcoes, List<string> Problemas, string? CopiaSeguranca = null);
 
 /// <summary>Backup, restauração, reorganização e reparo do banco SQLite.</summary>
 public sealed class ManutencaoService(MiniTimeDb db)
@@ -54,9 +54,19 @@ public sealed class ManutencaoService(MiniTimeDb db)
             seguranca = Path.Combine(Path.GetDirectoryName(bancoAtual) ?? ".", $"minitime-antes-da-restauracao-{DateTime.Now:yyyyMMdd-HHmmss}.db");
             File.Copy(bancoAtual, seguranca, overwrite: false);
         }
-        foreach (var sufixo in new[] { "-wal", "-shm" })
-            if (File.Exists(bancoAtual + sufixo)) File.Delete(bancoAtual + sufixo);
-        File.Copy(backup, bancoAtual, overwrite: true);
+        // Copia para um temporário ao lado do banco e só então troca: se a cópia falhar, o banco atual fica intacto.
+        var temporario = bancoAtual + ".restaurando";
+        try
+        {
+            File.Copy(backup, temporario, overwrite: true);
+            foreach (var sufixo in new[] { "-wal", "-shm" })
+                if (File.Exists(bancoAtual + sufixo)) File.Delete(bancoAtual + sufixo);
+            File.Move(temporario, bancoAtual, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporario)) File.Delete(temporario);
+        }
         return seguranca ?? "";
     }
 
@@ -72,7 +82,11 @@ public sealed class ManutencaoService(MiniTimeDb db)
         }
     }
 
-    /// <summary>Verifica a integridade e corrige inconsistências de Marcações e Horários (função "Reparar").</summary>
+    /// <summary>
+    /// Verifica a integridade e corrige inconsistências de Marcações e Horários (função "Reparar").
+    /// Antes de qualquer correção que apague dados, guarda uma cópia consistente do banco (<see cref="ResultadoReparo.CopiaSeguranca"/>).
+    /// Se o arquivo falhar na verificação de integridade, nada é alterado.
+    /// </summary>
     public ResultadoReparo Reparar()
     {
         var correcoes = new List<string>();
@@ -82,7 +96,18 @@ public sealed class ManutencaoService(MiniTimeDb db)
 
         var integridade = Escalar("PRAGMA integrity_check");
         var integro = integridade.Equals("ok", StringComparison.OrdinalIgnoreCase);
-        if (!integro) problemas.Add("Falha de integridade do arquivo: " + integridade);
+        if (!integro)
+        {
+            problemas.Add("Falha de integridade do arquivo: " + integridade + ". Nenhuma correção automática foi aplicada; restaure um backup.");
+            return new ResultadoReparo(false, correcoes, problemas);
+        }
+
+        string? copia = null;
+        if (db.CaminhoArquivo != ":memory:")
+        {
+            copia = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(db.CaminhoArquivo)) ?? ".", $"minitime-antes-do-reparo-{DateTime.Now:yyyyMMdd-HHmmss}.db");
+            Backup(copia);
+        }
 
         using var tx = c.BeginTransaction();
         void Corrige(string descricao, string sql)
@@ -94,7 +119,8 @@ public sealed class ManutencaoService(MiniTimeDb db)
             if (n > 0) correcoes.Add($"{descricao}: {n} registro(s)");
         }
 
-        Corrige("Marcações com cartão fora do padrão de 16 posições corrigidas", "UPDATE Marcacao SET Cracha = substr('0000000000000000' || trim(Cracha), -16, 16) WHERE length(Cracha) <> 16");
+        // Só completa com zeros à esquerda; cartões MAIORES que 16 posições nunca são cortados (poderiam colidir com outro cartão) — viram "problema".
+        Corrige("Marcações com cartão fora do padrão de 16 posições corrigidas", "UPDATE Marcacao SET Cracha = substr('0000000000000000' || trim(Cracha), -16, 16) WHERE length(Cracha) < 16 AND length(trim(Cracha)) <= 16");
         Corrige("Marcações duplicadas removidas", "DELETE FROM Marcacao WHERE Id NOT IN (SELECT MIN(Id) FROM Marcacao GROUP BY Cracha, DataHora, Tipo)");
         Corrige("Marcações com data inválida removidas", "DELETE FROM Marcacao WHERE DataHora < '1990-01-01' OR DataHora > '2999-12-31'");
         Corrige("Férias com período invertido removidas", "DELETE FROM Ferias WHERE Fim < Inicio");
@@ -103,12 +129,14 @@ public sealed class ManutencaoService(MiniTimeDb db)
         Corrige("Horários com tolerância negativa ajustados", "UPDATE Horarios SET TolManha=MAX(TolManha,0), TolTarde=MAX(TolTarde,0), TolSaida=MAX(TolSaida,0), TolExtEnt=MAX(TolExtEnt,0), TolExtInt=MAX(TolExtInt,0), TolExtSai=MAX(TolExtSai,0) WHERE TolManha<0 OR TolTarde<0 OR TolSaida<0 OR TolExtEnt<0 OR TolExtInt<0 OR TolExtSai<0");
         tx.Commit();
 
+        var cartoesLongos = Escalar("SELECT COUNT(*) FROM Marcacao WHERE length(Cracha) > 16");
+        if (cartoesLongos != "0") problemas.Add($"{cartoesLongos} marcação(ões) têm cartão com mais de 16 posições (não corrigido automaticamente; confira a origem).");
         var jornadasOrfas = Escalar("SELECT COUNT(*) FROM Funcionario WHERE Horario <> 0 AND Horario NOT IN (SELECT Codigo FROM Jornadas)");
         if (jornadasOrfas != "0") problemas.Add($"{jornadasOrfas} funcionário(s) apontam para uma jornada que não existe (abra o cadastro de cartões e escolha outra).");
         const string dias = "Segunda,Terca,Quarta,Quinta,Sexta,Sabado,Domingo";
         var cond = string.Join(" OR ", dias.Split(',').Select(d => $"({d}<>0 AND {d} NOT IN (SELECT Codigo FROM Horarios))"));
         var horariosOrfaos = Escalar($"SELECT COUNT(*) FROM Jornadas WHERE {cond}");
         if (horariosOrfaos != "0") problemas.Add($"{horariosOrfaos} jornada(s) usam um horário de trabalho que não existe (revise o cadastro de jornadas).");
-        return new ResultadoReparo(integro && problemas.Count == 0, correcoes, problemas);
+        return new ResultadoReparo(problemas.Count == 0, correcoes, problemas, copia);
     }
 }

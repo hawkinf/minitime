@@ -146,11 +146,8 @@ public sealed class MdbImporter(MiniTimeDb db)
             StandardOutputEncoding = Encoding.UTF8,
         };
         psi.ArgumentList.Add(mdb);
-        if (!string.IsNullOrEmpty(senha))
-        {
-            psi.ArgumentList.Add("--pwd");
-            psi.ArgumentList.Add(senha);
-        }
+        // A senha vai por variável de ambiente do processo filho: na linha de comando ela apareceria na lista de processos.
+        if (!string.IsNullOrEmpty(senha)) psi.Environment["MINITIME_MDB_PWD"] = senha;
         return Process.Start(psi) ?? throw new InvalidOperationException("Não foi possível iniciar o leitor do MDB.");
     }
 

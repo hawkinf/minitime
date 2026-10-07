@@ -125,12 +125,20 @@ public sealed class MiniTimeDb
         if (t == typeof(string)) return Convert.ToString(v, CultureInfo.InvariantCulture);
         if (t == typeof(bool)) return v is string sb ? sb is "1" or "true" or "True" : Convert.ToInt64(v) != 0;
         if (t == typeof(DateTime))
-            return v is string sd ? DateTime.ParseExact(sd, FormatoDataHora, CultureInfo.InvariantCulture) : Convert.ToDateTime(v);
+            return v is string sd ? ParseDataHora(sd) : Convert.ToDateTime(v);
         if (t == typeof(TimeSpan))
             return v is string st ? ParseHora(st) : TimeSpan.FromMinutes(Convert.ToDouble(v));
         if (t == typeof(byte[])) return v as byte[];
         if (t.IsEnum) return Enum.ToObject(t, Convert.ToInt32(v));
         return Convert.ChangeType(v, t, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Lê data/hora gravada pelo programa; aceita também ISO com "T" ou só a data (bancos editados à mão ou vindos de outras versões).</summary>
+    public static DateTime ParseDataHora(string s)
+    {
+        if (DateTime.TryParseExact(s, FormatoDataHora, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) return d;
+        if (DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out d)) return d;
+        throw new FormatException($"Data/hora inválida no banco: '{s}'");
     }
 
     public static TimeSpan ParseHora(string s)
