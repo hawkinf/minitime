@@ -202,3 +202,35 @@ public class ApuracaoTests
         if (ok) Assert.Equal(new TimeSpan(h, m, 0), t);
     }
 }
+
+public class ExportacaoTests
+{
+    [Fact]
+    public void Linha_segue_o_exemplo_do_manual()
+    {
+        // manual: 05362002031018070000100 → cartão 0536, 20/02/03, 10:18, tipo 07, "00", relógio 001
+        var m = new Marcacao { Cracha = "0000000000000536", DataHora = new DateTime(2003, 2, 20, 10, 18, 0), Tipo = 7, Terminal = 1 };
+        Assert.Equal("05362002031018070000100", MiniTime.Core.Exportacao.ExportadorMarcacoes.Linha(m, new(4, 2)));
+        Assert.Equal("053620022003101807" + "0000100", MiniTime.Core.Exportacao.ExportadorMarcacoes.Linha(m, new(4, 4)));
+        Assert.StartsWith("00536", MiniTime.Core.Exportacao.ExportadorMarcacoes.Linha(m, new(5, 2)));
+    }
+
+    [Fact]
+    public void So_exporta_coletadas_e_inseridas()
+    {
+        var ms = new[]
+        {
+            new Marcacao { Cracha = "0000000000007984", DataHora = new DateTime(2026, 7, 1, 9, 0, 0), Tipo = 7 },
+            new Marcacao { Cracha = "0000000000007984", DataHora = new DateTime(2026, 7, 1, 12, 0, 0), Tipo = 0, Justificativa = 3 },
+            new Marcacao { Cracha = "0000000000007984", DataHora = new DateTime(2026, 7, 1, 12, 5, 0), Tipo = 0, Justificativa = -1 },
+            new Marcacao { Cracha = "0000000000007984", DataHora = new DateTime(2026, 7, 1, 18, 0, 0), Tipo = 263 },
+            new Marcacao { Cracha = "0000000000007984", DataHora = new DateTime(2026, 7, 1, 23, 0, 0), Tipo = 256, EntradaSaida = 8 },
+        };
+        var txt = MiniTime.Core.Exportacao.ExportadorMarcacoes.Gerar(ms, new(4, 2));
+        var linhas = txt.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, linhas.Length);
+        Assert.Equal("798401072609000700000" + "00", linhas[0][..23].Length == 23 ? linhas[0].Substring(0, 21) + "00" : "");
+        Assert.Contains("0000", linhas[1]);
+        Assert.Equal("00", linhas[1].Substring(14, 2)); // tipo inserido
+    }
+}

@@ -68,6 +68,8 @@ public static class Sessao
     public static AppSettings Settings { get; private set; } = new();
     public static MiniTimeDb Db { get; private set; } = null!;
     public static Repositorios Repos { get; private set; } = null!;
+    /// <summary>Usuário autenticado (null = acesso livre, nenhum usuário cadastrado).</summary>
+    public static MiniTime.Core.Models.Usuario? Usuario { get; set; }
 
     public static void Iniciar()
     {

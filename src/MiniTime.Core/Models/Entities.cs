@@ -213,3 +213,13 @@ public sealed class Parametros
     public string? TipoEmpresa { get; set; }
     public int DuracaoSireneBioLite { get; set; }
 }
+
+/// <summary>Usuário do programa (menu Senhas). Sem usuários cadastrados o programa abre direto.</summary>
+[Table("Usuario")]
+public sealed class Usuario
+{
+    [Key] public string Nome { get; set; } = "";
+    public string SenhaHash { get; set; } = "";
+    /// <summary>0 = consulta, 1 = completo (altera cadastros e apuração), 2 = administrador (também gerencia usuários e utilitários).</summary>
+    public int Nivel { get; set; } = 1;
+}

@@ -20,6 +20,11 @@ public partial class App : Application
             Shutdown(1);
             return;
         }
+        if (Sessao.Repos.Usuarios.Contar() > 0)
+        {
+            Sessao.Usuario = Views.Login.Pedir();
+            if (Sessao.Usuario is null) { Shutdown(0); return; }
+        }
         var janela = new MainWindow();
         janela.Show();
         foreach (var a in e.Args.Where(a => a.StartsWith("--abrir=", StringComparison.Ordinal)))

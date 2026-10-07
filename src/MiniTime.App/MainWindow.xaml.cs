@@ -21,7 +21,8 @@ public partial class MainWindow : Window
 
     private void MontarMenu()
     {
-        var itens = Menus.Itens();
+        var nivel = Sessao.Usuario?.Nivel ?? 2; // sem usuários cadastrados o acesso é livre
+        var itens = Menus.Itens().Where(i => i.Nivel <= nivel).ToList();
 
         foreach (var grupo in itens.GroupBy(i => i.Grupo))
         {
@@ -34,6 +35,35 @@ public partial class MainWindow : Window
             }
             MenuPrincipal.Items.Add(topo);
         }
+
+        var ajuda = new MenuItem { Header = "A_juda" };
+        var sobre = new MenuItem { Header = "_Sobre o MiniTime…" };
+        sobre.Click += (_, _) => Sobre.Mostrar();
+        ajuda.Items.Add(sobre);
+        MenuPrincipal.Items.Add(ajuda);
+
+        var sair = new MenuItem { Header = "_Sair", InputGestureText = "Ctrl+R" };
+        sair.Click += (_, _) => Close();
+        MenuPrincipal.Items.Add(sair);
+        InputBindings.Add(new System.Windows.Input.KeyBinding(new RelayCommand(Close), System.Windows.Input.Key.R, System.Windows.Input.ModifierKeys.Control));
+        Closing += (_, e) =>
+        {
+            if (!Mensagens.Confirmar("Sair do Programa ?")) e.Cancel = true;
+        };
+    }
+
+    private sealed class RelayCommand(Action acao) : System.Windows.Input.ICommand
+    {
+        public event EventHandler? CanExecuteChanged { add { } remove { } }
+        public bool CanExecute(object? parameter) => true;
+        public void Execute(object? parameter) => acao();
+    }
+
+    public void FecharTodas()
+    {
+        foreach (var aba in _abas.Values.ToList()) Abas.Items.Remove(aba);
+        _abas.Clear();
+        AtualizarBoasVindas();
     }
 
     public void AbrirAba(string titulo, string chave, Func<UserControl> criar)

@@ -83,6 +83,7 @@ public partial class ColetaView : UserControl
 
             var res = new ColetaService(Sessao.Db).Gravar(coletados.Select(r => (r.Cartao, r.DataHora)), endereco);
             Barra.Value = 100;
+            ExportarMonitoracao(coletados, endereco);
             TxtStatus.Text = coletados.Count == 0
                 ? "Não há marcações novas no relógio."
                 : $"Coleta concluída: {res.Gravadas} gravada(s), {res.Repetidas} repetida(s), {res.Invalidas} com data inválida.";
@@ -101,6 +102,26 @@ public partial class ColetaView : UserControl
             Alternar(false);
             _cts?.Dispose();
             _cts = null;
+        }
+    }
+
+    /// <summary>Se "Gerar arquivo na coleta" estiver ligado nos parâmetros de exportação, acrescenta as marcações ao arquivo.</summary>
+    private static void ExportarMonitoracao(List<RegistroColetado> coletados, int endereco)
+    {
+        var p = Sessao.Repos.Parametros.Obter();
+        if (!p.ExpMonitoracao || string.IsNullOrWhiteSpace(p.NomeArq) || coletados.Count == 0) return;
+        try
+        {
+            var marcacoes = coletados.Select(r => new MiniTime.Core.Models.Marcacao
+            {
+                Cracha = CodigoCartao.Normalizar(r.Cartao), DataHora = r.DataHora, Terminal = endereco, Tipo = MiniTime.Core.Apuracao.TipoMarcacao.Coletada,
+            });
+            File.AppendAllText(p.NomeArq, MiniTime.Core.Exportacao.ExportadorMarcacoes.Gerar(marcacoes, new MiniTime.Core.Exportacao.OpcoesExportacao(p.NumCartao, p.NumDigAno)), System.Text.Encoding.ASCII);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log.Erro("Falha ao gravar o arquivo de monitoração: " + p.NomeArq, ex);
+            Mensagens.Aviso("As marcações foram gravadas no banco, mas não foi possível gravar o arquivo de monitoração em " + p.NomeArq);
         }
     }
 

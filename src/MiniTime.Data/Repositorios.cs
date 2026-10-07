@@ -53,6 +53,7 @@ public sealed class Repositorios
         Terminais = new Repository<Terminal>(db);
         Templates = new Repository<TemplateBio>(db);
         Parametros = new ParametrosRepository(db);
+        Usuarios = new Repository<Usuario>(db);
     }
 
     public FuncionarioRepository Funcionarios { get; }
@@ -68,4 +69,5 @@ public sealed class Repositorios
     public Repository<Terminal> Terminais { get; }
     public Repository<TemplateBio> Templates { get; }
     public ParametrosRepository Parametros { get; }
+    public Repository<Usuario> Usuarios { get; }
 }
