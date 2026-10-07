@@ -270,7 +270,7 @@ public sealed class FuncionariosView : CadastroView<Funcionario>
     private readonly DatePicker _ini = new() { Width = 120 };
     private readonly DatePicker _fim = new() { Width = 120 };
     private readonly StackPanel _painelFerias = new() { Margin = new Thickness(0, 14, 0, 0) };
-    private readonly int _digitos = Math.Clamp(Sessao.Repos.Parametros.Obter().NumCartao, 4, 6);
+    private readonly int _digitos = int.TryParse(Sessao.Repos.Parametros.Obter().QtdeDig, out var n) ? Math.Clamp(n, 4, 14) : 6;
 
     public FuncionariosView()
     {

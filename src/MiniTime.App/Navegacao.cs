@@ -26,6 +26,11 @@ public static class Menus
         new("_Arquivos", "_Feriados…", "feriados", () => new FeriadosView()),
         new("_Arquivos", "_Justificativas…", "justificativas", () => new JustificativasView()),
         new("_Arquivos", "_Alarmes (sirene)…", "alarmes", () => new AlarmesView()),
+        new("_Arquivos", "C_onfigurações…", "config", () => new ConfiguracoesView()),
+        new("_Arquivos", "_Relógio…", "relogio", () => new RelogioView()),
+        new("_Arquivos", "Horário de _verão…", "verao", () => new VeraoView()),
+        new("C_omunicação", "_Coleta / Monitoração…", "coleta", () => new ColetaView()),
+        new("C_omunicação", "_Parâmetros do relógio…", "paramrelogio", () => new ParametrosRelogioView()),
         new("_Utilitários", "_Importar dados do MDB antigo…", "importar", () => new ImportacaoMdbView()),
     ];
 }

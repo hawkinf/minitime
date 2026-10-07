@@ -41,7 +41,7 @@ public sealed class MinutosConverter : IValueConverter
     }
 }
 
-public enum TipoCampo { Texto, Inteiro, Hora, Duracao, Booleano, Data, Escolha }
+public enum TipoCampo { Texto, Inteiro, Hora, Duracao, Booleano, Data, Escolha, EscolhaTexto }
 
 /// <summary>Descrição de um campo do formulário de cadastro.</summary>
 public sealed class Campo
@@ -55,6 +55,8 @@ public sealed class Campo
     public bool SomenteNovo { get; init; }
     /// <summary>Para TipoCampo.Escolha: (valor, texto). O valor é int.</summary>
     public IReadOnlyList<(int Valor, string Texto)>? Opcoes { get; init; }
+    /// <summary>Para TipoCampo.EscolhaTexto: (valor, texto) com valor string.</summary>
+    public IReadOnlyList<(string Valor, string Texto)>? OpcoesTexto { get; init; }
     public string? Dica { get; init; }
     public string? Grupo { get; init; }
 }

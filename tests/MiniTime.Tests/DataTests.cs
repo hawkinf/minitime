@@ -69,3 +69,29 @@ public class DataTests
     [InlineData(" 12 ", "0000000000000012")]
     public void Cartao_normaliza(string entrada, string esperado) => Assert.Equal(esperado, CodigoCartao.Normalizar(entrada));
 }
+
+public class ColetaServiceTests
+{
+    [Fact]
+    public void Coleta_grava_sem_duplicar_e_recusa_datas_absurdas()
+    {
+        var db = new MiniTimeDb(":memory:");
+        var rep = new Repositorios(db);
+        var svc = new ColetaService(db);
+        var agora = new DateTime(2026, 10, 7, 12, 0, 0);
+        var lote = new[]
+        {
+            ("7984", new DateTime(2026, 10, 7, 9, 0, 30)),
+            ("7984", new DateTime(2026, 10, 7, 9, 0, 59)),   // mesma marcação no mesmo minuto → repetida
+            ("7984", new DateTime(2150, 7, 14, 12, 2, 0)),   // data absurda
+            ("0000000000008002", new DateTime(2026, 10, 7, 9, 5, 0)),
+        };
+        var r = svc.Gravar(lote, terminal: 1, agora);
+        Assert.Equal(new ResultadoColeta(4, 2, 1, 1), r);
+        Assert.Equal(2, rep.Marcacoes.Contar());
+        Assert.Equal(2, rep.Backup.Contar());
+        var segunda = svc.Gravar(lote, 1, agora);
+        Assert.Equal(0, segunda.Gravadas);
+        Assert.All(rep.Marcacoes.Todos(), m => { Assert.Equal(7, m.Tipo); Assert.Equal(16, m.Cracha.Length); });
+    }
+}
