@@ -11,13 +11,21 @@
     <ProjectReference Include="..\MiniTime.Core\MiniTime.Core.csproj" />
     <ProjectReference Include="..\MiniTime.Data\MiniTime.Data.csproj" />
     <ProjectReference Include="..\MiniTime.Serial\MiniTime.Serial.csproj" />
-    <ProjectReference Include="..\MiniTime.MdbReader\MiniTime.MdbReader.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
-  <!-- copia o leitor x86 do MDB para ao lado do app -->
-  <Target Name="CopyMdbReader" AfterTargets="Build">
+
+  <!-- O leitor de MDB é um exe x86 (.NET Framework) separado: compila sem herdar o RuntimeIdentifier do app e copia para MdbReader\ -->
+  <Target Name="CompilarLeitorMdb" AfterTargets="Build">
+    <MSBuild Projects="..\MiniTime.MdbReader\MiniTime.MdbReader.csproj" Targets="Restore;Build"
+             Properties="Configuration=$(Configuration);Platform=AnyCPU" RemoveProperties="RuntimeIdentifier;SelfContained;PublishSingleFile;TargetFramework" />
     <ItemGroup>
-      <MdbReaderFiles Include="..\MiniTime.MdbReader\bin\$(Configuration)\net48\MiniTime.MdbReader.exe*" />
+      <ArquivosLeitorMdb Include="..\MiniTime.MdbReader\bin\$(Configuration)\net48\MiniTime.MdbReader.exe*" />
     </ItemGroup>
-    <Copy SourceFiles="@(MdbReaderFiles)" DestinationFolder="$(OutDir)MdbReader" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(ArquivosLeitorMdb)" DestinationFolder="$(OutDir)MdbReader" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="CopiarLeitorMdbNaPublicacao" AfterTargets="Publish" DependsOnTargets="CompilarLeitorMdb">
+    <ItemGroup>
+      <ArquivosLeitorMdbPub Include="..\MiniTime.MdbReader\bin\$(Configuration)\net48\MiniTime.MdbReader.exe*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ArquivosLeitorMdbPub)" DestinationFolder="$(PublishDir)MdbReader" SkipUnchangedFiles="true" />
   </Target>
 </Project>

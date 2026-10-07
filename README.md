@@ -7,24 +7,30 @@ USB‑serial e banco SQLite, e traz um módulo para **importar o banco MDB (Acce
 > Projeto independente, feito para uso próprio. Não é afiliado à Dimep. O código VB original não faz parte
 > deste repositório.
 
-## Estado atual
+## O que já funciona
 
 | Área | Situação |
 |---|---|
-| Camada SQLite (esquema, migrations, repositórios) | pronta, com testes |
-| Importador MDB → SQLite (leitura x86, quarentena, conferência de contagens) | pronto, testado com banco real |
-| Shell WPF (abas, menu, tela de importação) | pronto |
-| Cadastros, apuração, comunicação serial, relatórios, exportação | em andamento |
+| Importação do MDB antigo → SQLite (atômica, com quarentena e conferência de contagens) | pronto, testado com banco real |
+| Cadastros: cartões (com férias), horários, jornadas, feriados, justificativas, alarmes, configurações, relógio, horário de verão | pronto |
+| Apuração e espelho de ponto (tolerâncias, intervalo, extras, faltas, abonos, noturno), edição de marcações, justificativas, impressão/CSV | pronto (regras em `docs/spec/apuracao.md`) |
+| Listagem de marcações e relatórios de cadastros | pronto |
+| Exportação / importação de arquivo de marcações (MOVIMENT.TXT), backup/restauração, reorganização e reparo | pronto |
+| Senhas e níveis de acesso | pronto |
+| Coleta de marcações pela serial | **experimental**: protocolo reconstruído, falta validar com o relógio (log hex na tela) |
+| Acerto de hora, envio de cartões/alarmes/faixa horária, status do relógio | não implementado (depende do protocolo) |
+| BioLite / Promag | fora de escopo |
 
-## Como compilar
+## Como compilar e publicar
 
 ```powershell
 dotnet build MiniTime.sln
 dotnet test
+.\scripts\publicar.ps1        # gera dist\MiniTime-<versão>-win-x64.zip (autocontido)
 ```
 
-Requer o SDK .NET 8 (ou superior). O leitor de MDB (`MiniTime.MdbReader`, .NET Framework 4.8, x86) usa o
-provedor Jet 4.0 que acompanha o Windows; ele é copiado para `MdbReader\` ao lado do executável.
+O leitor de MDB (`MiniTime.MdbReader`, .NET Framework 4.8, x86) usa o provedor Jet 4.0 que acompanha o Windows; é
+compilado junto e copiado para `MdbReader\` ao lado do executável.
 
 ## Importando o MDB antigo
 
@@ -32,17 +38,22 @@ Menu **Utilitários → Importar dados do MDB antigo**. O arquivo original nunca
 pasta temporária e lido em modo somente leitura. A importação é atômica (tudo ou nada) e registros inválidos
 (por exemplo marcações com data absurda) vão para a tabela `ImportacaoQuarentena` em vez de se perderem.
 
-Se o MDB tiver senha, informe-a na tela (fica salva só no computador do usuário) ou na variável de ambiente
-`MINITIME_MDB_PWD`. **Nenhuma senha é versionada neste repositório.**
+Se o MDB tiver senha, informe-a na tela (fica salva só no computador do usuário, em `%APPDATA%\MiniTime`) ou na
+variável de ambiente `MINITIME_MDB_PWD`. **Nenhuma senha é versionada neste repositório.**
 
 ## Estrutura
 
 ```
-src/MiniTime.Core       modelos e regras
-src/MiniTime.Data       SQLite + importador
+src/MiniTime.Core       modelos, apuração, exportação, segurança
+src/MiniTime.Data       SQLite, repositórios, importador MDB, serviços
 src/MiniTime.MdbReader  leitor de MDB (net48, x86)
-src/MiniTime.Serial     comunicação com o relógio
+src/MiniTime.Serial     protocolo e cliente do relógio
 src/MiniTime.App        interface WPF
 tests/MiniTime.Tests    testes xUnit
-docs/spec               especificações reconstruídas
+docs/spec               especificações reconstruídas (apuração, protocolo, banco)
 ```
+
+## Dados e configuração
+
+O banco fica em `%LOCALAPPDATA%\MiniTime\minitime.db`; logs em `%LOCALAPPDATA%\MiniTime\logs`.
+A variável `MINITIME_DB` aponta o programa para outro arquivo de banco (testes/suporte).
