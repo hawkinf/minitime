@@ -1,0 +1,16 @@
+bin/
+obj/
+dist/
+.vs/
+*.user
+*.mdb
+*.MDB
+*.ldb
+*.db
+*.db-wal
+*.db-shm
+*.bak
+
+# código decompilado/material proprietário da Dimep: só local
+source/
+docs/ref/

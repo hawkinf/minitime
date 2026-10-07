@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>MiniTime</AssemblyName>
+    <RootNamespace>MiniTime.App</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.*" />
+    <ProjectReference Include="..\MiniTime.Core\MiniTime.Core.csproj" />
+    <ProjectReference Include="..\MiniTime.Data\MiniTime.Data.csproj" />
+    <ProjectReference Include="..\MiniTime.Serial\MiniTime.Serial.csproj" />
+    <ProjectReference Include="..\MiniTime.MdbReader\MiniTime.MdbReader.csproj" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <!-- copia o leitor x86 do MDB para ao lado do app -->
+  <Target Name="CopyMdbReader" AfterTargets="Build">
+    <ItemGroup>
+      <MdbReaderFiles Include="..\MiniTime.MdbReader\bin\$(Configuration)\net48\MiniTime.MdbReader.exe*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(MdbReaderFiles)" DestinationFolder="$(OutDir)MdbReader" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

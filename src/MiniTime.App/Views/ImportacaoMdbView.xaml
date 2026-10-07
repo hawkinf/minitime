@@ -1,0 +1,42 @@
+<UserControl x:Class="MiniTime.App.Views.ImportacaoMdbView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Style="{StaticResource Titulo}" Text="Importar dados do MiniTime antigo (MDB → SQLite)"/>
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" Margin="0,0,0,10"
+                   Text="Selecione o arquivo DIMEP.MDB do programa antigo. O arquivo original não é alterado: ele é copiado para uma pasta temporária e lido em modo somente leitura. A importação é atômica — se algo falhar, nada é gravado."/>
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Style="{StaticResource Rotulo}" Text="Arquivo MDB:"/>
+            <TextBox x:Name="TxtArquivo" Grid.Column="1"/>
+            <Button x:Name="BtnProcurar" Grid.Column="2" Margin="6,0,0,0" Content="Procurar…" Click="BtnProcurar_Click"/>
+        </Grid>
+        <StackPanel Grid.Row="3" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                <TextBlock Style="{StaticResource Rotulo}" Text="Senha do MDB:"/>
+                <PasswordBox x:Name="TxtSenha" Width="200" Padding="4,3"/>
+                <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" Foreground="Gray" Text="(deixe em branco se o arquivo não tiver senha; fica salva só neste computador)"/>
+            </StackPanel>
+            <CheckBox x:Name="ChkSubstituir" IsChecked="True" Content="Substituir os dados atuais do banco (recomendado). Desmarcado: acrescenta; registros repetidos vão para a quarentena."/>
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                <Button x:Name="BtnImportar" Style="{StaticResource BotaoPrimario}" Content="Importar" Click="BtnImportar_Click"/>
+                <Button x:Name="BtnCancelar" Content="Cancelar" IsEnabled="False" Click="BtnCancelar_Click"/>
+                <ProgressBar x:Name="Barra" Width="260" Height="16" Margin="12,0,8,0" Minimum="0" Maximum="100"/>
+                <TextBlock x:Name="TxtProgresso" VerticalAlignment="Center"/>
+            </StackPanel>
+        </StackPanel>
+        <TextBox x:Name="TxtRelatorio" Grid.Row="4" IsReadOnly="True" FontFamily="Consolas" VerticalScrollBarVisibility="Auto"
+                 HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" AcceptsReturn="True"/>
+    </Grid>
+</UserControl>
