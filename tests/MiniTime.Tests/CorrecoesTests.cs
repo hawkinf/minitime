@@ -174,3 +174,43 @@ public class CorrecoesSerialTests
         Assert.Throws<InvalidDataException>(() => cli.Coletar(null, TimeSpan.FromMilliseconds(200)).ToList());
     }
 }
+
+public class DecodificadorTests
+{
+    [Fact]
+    public void Decodifica_log_da_tela_de_coleta_com_direcao_e_instante()
+    {
+        var tx = BitConverter.ToString(new Quadro(Quadro.ParaBcd(1), 0x0E, []).Serializar()).Replace('-', ' ');
+        var rx = BitConverter.ToString(new Quadro(Quadro.ParaBcd(1), 0x1F, "0002"u8.ToArray()).Serializar(false)).Replace('-', ' ');
+        var r = Decodificador.Decodificar([$"14:05:01.123 TX {tx}", $"14:05:01.180 RX {rx}"]);
+        Assert.Equal(0, r.ErrosChecksum);
+        Assert.Equal(2, r.Quadros.Count);
+        Assert.Equal(("TX", (byte)0x0E), (r.Quadros[0].Direcao, r.Quadros[0].Quadro.Comando));
+        Assert.Equal("0002", r.Quadros[1].DadosComoTexto);
+        Assert.Equal("14:05:01.180", r.Quadros[1].Instante);
+        Assert.Contains("cmd=0x1F", r.Quadros[1].ToString());
+    }
+
+    [Fact]
+    public void Quadro_dividido_em_varias_linhas_e_hex_colado_funcionam_e_checksum_ruim_e_contado()
+    {
+        var bytes = new Quadro(Quadro.ParaBcd(12), 0x20, [1, 2, 3]).Serializar(false);
+        var hex = BitConverter.ToString(bytes).Replace("-", "");
+        var r = Decodificador.Decodificar([$"RX {hex[..6]}", $"RX 0x{hex[6..8]},{hex[8..]}", "# comentário", ""]);
+        Assert.Single(r.Quadros);
+        Assert.Equal(new byte[] { 1, 2, 3 }, r.Quadros[0].Quadro.Dados);
+
+        bytes[^2] ^= 0x01;
+        var ruim = Decodificador.Decodificar([BitConverter.ToString(bytes).Replace('-', ' ')]);
+        Assert.Empty(ruim.Quadros);
+        Assert.Equal(1, ruim.ErrosChecksum);
+    }
+
+    [Fact]
+    public void Resumo_agrupa_por_comando()
+    {
+        var a = BitConverter.ToString(new Quadro(Quadro.ParaBcd(1), 0x0F, []).Serializar()).Replace('-', ' ');
+        var r = Decodificador.Decodificar([$"TX {a}", $"TX {a}"]);
+        Assert.Contains("TX cmd=0x0F  x2", Decodificador.Resumo(r));
+    }
+}

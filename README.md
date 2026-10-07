@@ -48,6 +48,7 @@ src/MiniTime.Core       modelos, apuração, exportação, segurança
 src/MiniTime.Data       SQLite, repositórios, importador MDB, serviços
 src/MiniTime.MdbReader  leitor de MDB (net48, x86)
 src/MiniTime.Serial     protocolo e cliente do relógio
+src/MiniTime.Protocolo  ferramenta de captura/decodificação do protocolo (minitime-protocolo)
 src/MiniTime.App        interface WPF
 tests/MiniTime.Tests    testes xUnit
 docs/spec               especificações reconstruídas (apuração, protocolo, banco)
