@@ -1,3 +1,4 @@
+using MiniTime.Core.Apuracao;
 using MiniTime.Core.Models;
 using MiniTime.Core.Util;
 using MiniTime.Data;
@@ -95,3 +96,72 @@ public class ColetaServiceTests
         Assert.All(rep.Marcacoes.Todos(), m => { Assert.Equal(7, m.Tipo); Assert.Equal(16, m.Cracha.Length); });
     }
 }
+
+public class ApuracaoServiceTests
+{
+    private static (Repositorios r, ApuracaoService s, Funcionario f) Cenario()
+    {
+        var db = new MiniTimeDb(":memory:");
+        var r = new Repositorios(db);
+        r.Horarios.Inserir(new Horario { Codigo = 1, Descricao = "H", DeSS1 = new(9, 0, 0), DeSS2 = new(11, 30, 0), DeSS3 = new(12, 30, 0), DeSS4 = new(18, 0, 0), TolManha = 5, TolTarde = 5, TolSaida = 5, Intervalo = 1, RefMinimo = 60 });
+        r.Jornadas.Inserir(new Jornada { Codigo = 1, Segunda = 1, Terca = 1, Quarta = 1, Quinta = 1, Sexta = 1 });
+        r.Justificativas.Inserir(new Justificativa { Codigo = 1, Descricao = "Atestado", Tipo = 3 });
+        var f = new Funcionario { Codigo = CodigoCartao.Normalizar("7984"), Nome = "Fulano", Horario = 1 };
+        r.Funcionarios.Inserir(f);
+        return (r, new ApuracaoService(r), f);
+    }
+
+    [Fact]
+    public void Apura_grava_classificacao_e_justifica_dia()
+    {
+        var (r, s, f) = Cenario();
+        var seg = new DateTime(2026, 7, 6);
+        new ColetaService(r.Db).Gravar(
+            new[] { "09:00", "11:30", "12:30", "18:00" }.Select(h => ("7984", seg + TimeSpan.Parse(h))), 1, new DateTime(2026, 8, 1));
+        var res = s.Apurar(f, seg, seg.AddDays(1), hoje: new DateTime(2026, 8, 1));
+        Assert.Equal(StatusDia.Normal, res.Dias[0].Status);
+        Assert.Equal(StatusDia.Falta, res.Dias[1].Status);
+        Assert.Equal(new[] { 1, 2, 3, 4 }, r.Marcacoes.Periodo(seg, seg.AddDays(1), f.Codigo).Select(m => m.EntradaSaida));
+
+        s.JustificarDia(f, seg.AddDays(1), 1);
+        var depois = s.Apurar(f, seg, seg.AddDays(1), hoje: new DateTime(2026, 8, 1));
+        Assert.Equal(StatusDia.Abonado, depois.Dias[1].Status);
+        Assert.Equal(480, depois.Totais.Abonado);
+        Assert.Equal(0, depois.Totais.Saldo);
+        s.RemoverJustificativaDia(f, seg.AddDays(1));
+        Assert.Equal(StatusDia.Falta, s.Apurar(f, seg, seg.AddDays(1), hoje: new DateTime(2026, 8, 1)).Dias[1].Status);
+    }
+
+    [Fact]
+    public void Incluir_desprezar_e_restaurar_marcacoes()
+    {
+        var (r, s, f) = Cenario();
+        var dia = new DateTime(2026, 7, 7);
+        var m = s.IncluirMarcacao(f, dia.AddHours(9).AddSeconds(30), 3);
+        Assert.Throws<InvalidOperationException>(() => s.IncluirMarcacao(f, dia.AddHours(9), 3));
+        Assert.Equal(TipoMarcacaoCodigo.Manual, r.Marcacoes.Obter(m.Id)!.Tipo);
+
+        new ColetaService(r.Db).Gravar([("7984", dia.AddHours(18))], 1, new DateTime(2026, 8, 1));
+        var coletada = r.Marcacoes.Periodo(dia, dia.AddDays(1), f.Codigo).Single(x => x.Tipo == 7);
+        s.DesprezarOuExcluir(coletada);
+        Assert.Equal(263, r.Marcacoes.Obter(coletada.Id)!.Tipo);
+        s.DesprezarOuExcluir(m); // manual → exclui
+        Assert.Null(r.Marcacoes.Obter(m.Id));
+        s.RestaurarDesprezada(coletada);
+        Assert.Equal(7, r.Marcacoes.Obter(coletada.Id)!.Tipo);
+    }
+
+    [Theory]
+    [InlineData("2026-10-07", 25, "2026-08-26", "2026-09-25")]
+    [InlineData("2026-09-26", 25, "2026-08-26", "2026-09-25")]
+    [InlineData("2026-10-07", 31, "2026-10-01", "2026-10-31")]
+    [InlineData("2026-10-03", 31, "2026-09-01", "2026-09-30")]
+    public void Periodo_padrao_segue_o_fechamento(string hoje, int dia, string ini, string fim)
+    {
+        var (i, f) = ApuracaoService.PeriodoPadrao(DateTime.Parse(hoje), dia);
+        Assert.Equal(DateTime.Parse(ini), i);
+        Assert.Equal(DateTime.Parse(fim), f);
+    }
+}
+
+internal static class TipoMarcacaoCodigo { public const int Manual = 0; }

@@ -31,6 +31,7 @@ public static class Menus
         new("_Arquivos", "Horário de _verão…", "verao", () => new VeraoView()),
         new("C_omunicação", "_Coleta / Monitoração…", "coleta", () => new ColetaView()),
         new("C_omunicação", "_Parâmetros do relógio…", "paramrelogio", () => new ParametrosRelogioView()),
+        new("_Relatório", "_Espelho de ponto / Apuração…", "espelho", () => new EspelhoView()),
         new("_Utilitários", "_Importar dados do MDB antigo…", "importar", () => new ImportacaoMdbView()),
     ];
 }

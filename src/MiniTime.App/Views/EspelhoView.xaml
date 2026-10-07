@@ -1,0 +1,72 @@
+<UserControl x:Class="MiniTime.App.Views.EspelhoView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="3*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="2*"/>
+        </Grid.RowDefinitions>
+        <TextBlock Style="{StaticResource Titulo}" Text="Espelho de Ponto / Apuração"/>
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,8">
+            <TextBlock Style="{StaticResource Rotulo}" Text="Funcionário:"/>
+            <ComboBox x:Name="CmbFuncionario" Width="300" DisplayMemberPath="Rotulo" SelectionChanged="Filtro_Changed"/>
+            <TextBlock Style="{StaticResource Rotulo}" Text="De:" Margin="14,0,6,0"/>
+            <DatePicker x:Name="DtIni" Width="165" SelectedDateChanged="Filtro_Changed"/>
+            <TextBlock Style="{StaticResource Rotulo}" Text="Até:" Margin="10,0,6,0"/>
+            <DatePicker x:Name="DtFim" Width="165" SelectedDateChanged="Filtro_Changed"/>
+            <Button Content="Imprimir…" Margin="14,0,6,0" Click="BtnImprimir_Click" Style="{StaticResource BotaoPrimario}"/>
+            <Button Content="Imprimir todos…" Click="BtnImprimirTodos_Click"/>
+        </WrapPanel>
+
+        <DataGrid x:Name="GridDias" Grid.Row="2" SelectionChanged="GridDias_SelectionChanged" LoadingRow="GridDias_LoadingRow">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Data" Binding="{Binding Data}" Width="80"/>
+                <DataGridTextColumn Header="Dia" Binding="{Binding Semana}" Width="50"/>
+                <DataGridTextColumn Header="Ent. manhã" Binding="{Binding EntManha}" Width="80"/>
+                <DataGridTextColumn Header="Sai. manhã" Binding="{Binding SaiManha}" Width="80"/>
+                <DataGridTextColumn Header="Ent. tarde" Binding="{Binding EntTarde}" Width="80"/>
+                <DataGridTextColumn Header="Sai. tarde" Binding="{Binding SaiTarde}" Width="80"/>
+                <DataGridTextColumn Header="Ent. extra" Binding="{Binding EntExtra}" Width="75"/>
+                <DataGridTextColumn Header="Sai. extra" Binding="{Binding SaiExtra}" Width="75"/>
+                <DataGridTextColumn Header="Trabalhado" Binding="{Binding Trabalhado}" Width="85"/>
+                <DataGridTextColumn Header="Atraso" Binding="{Binding Atraso}" Width="65"/>
+                <DataGridTextColumn Header="Extra" Binding="{Binding Extra}" Width="65"/>
+                <DataGridTextColumn Header="Abonado" Binding="{Binding Abonado}" Width="70"/>
+                <DataGridTextColumn Header="Observação" Binding="{Binding Obs}" Width="*"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Border Grid.Row="3" Background="White" BorderBrush="{StaticResource Borda}" BorderThickness="1" Padding="8,6" Margin="0,6,0,6">
+            <TextBlock x:Name="TxtTotais" TextWrapping="Wrap"/>
+        </Border>
+
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <DataGrid x:Name="GridMarcacoes">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Hora" Binding="{Binding Hora}" Width="70"/>
+                    <DataGridTextColumn Header="Origem" Binding="{Binding Origem}" Width="110"/>
+                    <DataGridTextColumn Header="Posição" Binding="{Binding Posicao}" Width="130"/>
+                    <DataGridTextColumn Header="Situação" Binding="{Binding Situacao}" Width="110"/>
+                    <DataGridTextColumn Header="Justificativa" Binding="{Binding Justificativa}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <StackPanel Grid.Column="1" Margin="10,0,0,0" MinWidth="190">
+                <TextBlock x:Name="TxtDiaSel" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <Button Content="Incluir marcação…" Click="BtnIncluir_Click" Margin="0,0,0,4"/>
+                <Button Content="Desprezar / excluir marcação" Click="BtnDesprezar_Click" Margin="0,0,0,4"/>
+                <Button Content="Restaurar marcação desprezada" Click="BtnRestaurar_Click" Margin="0,0,0,4"/>
+                <Button Content="Justificar dia (abonar)…" Click="BtnJustificarDia_Click" Margin="0,0,0,4"/>
+                <Button Content="Remover justificativa do dia" Click="BtnRemoverJust_Click" Margin="0,0,0,4"/>
+                <Button Content="Restaurar período do relógio…" Click="BtnRestaurarPeriodo_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>
