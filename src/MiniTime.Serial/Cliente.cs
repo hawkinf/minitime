@@ -44,6 +44,7 @@ public sealed class TransporteSerialPort : ITransporteSerial
             return n;
         }
         catch (TimeoutException) { return 0; }
+        catch (InvalidOperationException ex) { throw new IOException("A porta serial foi fechada ou desconectada.", ex); }
     }
 
     public void LimparEntrada() => _porta.DiscardInBuffer();
@@ -90,6 +91,8 @@ public sealed class ClienteRelogio : IDisposable
     private readonly ITransporteSerial _t;
     private readonly ReceptorQuadros _rx;
     private readonly byte[] _buf = new byte[256];
+    /// <summary>Quadros que chegaram juntos no mesmo bloco de bytes e ainda não foram entregues.</summary>
+    private readonly Queue<Quadro> _pendentes = new();
 
     public int Endereco { get; }
     /// <summary>Hex de tudo que foi enviado/recebido (para a tela de diagnóstico).</summary>
@@ -115,13 +118,15 @@ public sealed class ClienteRelogio : IDisposable
     public Quadro? Receber(TimeSpan timeout, CancellationToken ct = default)
     {
         var limite = DateTime.UtcNow + timeout;
+        if (_pendentes.Count > 0) return _pendentes.Dequeue();
         while (DateTime.UtcNow < limite)
         {
             ct.ThrowIfCancellationRequested();
             var n = _t.Ler(_buf, TimeSpan.FromMilliseconds(100));
             if (n == 0) continue;
             Trafego?.Invoke("RX", _buf.AsSpan(0, n).ToArray());
-            foreach (var q in _rx.Alimentar(_buf.AsSpan(0, n))) return q;
+            foreach (var q in _rx.Alimentar(_buf.AsSpan(0, n))) _pendentes.Enqueue(q);
+            if (_pendentes.Count > 0) return _pendentes.Dequeue();
         }
         return null;
     }
@@ -131,6 +136,7 @@ public sealed class ClienteRelogio : IDisposable
         for (var i = 0; i < tentativas; i++)
         {
             _rx.Reiniciar();
+            _pendentes.Clear();
             Enviar(comando, dados);
             if (Receber(timeout, ct) is { } r) return r;
         }
@@ -166,7 +172,8 @@ public sealed class ClienteRelogio : IDisposable
                 if (total == 0) yield break;
                 resp = Transacionar(Comandos.ConfirmaProximo, [], espera, ct: ct);
             }
-            else yield break;
+            else
+                throw new InvalidDataException($"Resposta inesperada do relógio (comando 0x{resp.Comando:X2}, {resp.Dados.Length} byte(s)); a coleta foi interrompida após {recebidos} registro(s). Veja o log hexadecimal.");
         }
     }
 

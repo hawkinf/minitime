@@ -36,8 +36,31 @@ Cada marcação chega como texto de 28 caracteres:
 O programa grava em `Marcacao` com `Tipo = 7`, `Terminal = endereço`, e em `Backup`. Implementado em `ClienteRelogio.Coletar`.
 **Hipótese:** J pergunta/inicia, K confirma o registro e pede o próximo. A sequência real precisa ser conferida com o log hex.
 
-## Outros comandos (não implementados)
+## Outros comandos (não implementados) e como descobri-los
 
 Acerto de data/hora (formato `ddmmyy`), envio de cartões (50 no Mini Point), faixa horária, alarmes, horário de verão, status
-(capacidade, quantidade, versão do firmware): exigem capturar o tráfego do programa original com o relógio ligado
-(ex.: com um monitor de porta serial) ou testar comandos com a tela de coleta em modo de diagnóstico.
+(capacidade, quantidade, versão do firmware): o quadro (framing) já está resolvido; **faltam os códigos de comando e o layout dos dados**.
+Eles só saem de uma destas fontes, em ordem de confiabilidade:
+
+1. **Captura do programa original funcionando.** O VB6 antigo costuma rodar em Windows XP/7 32 bits (máquina velha ou VM VirtualBox/VMware
+   com o adaptador USB-serial repassado à VM). Com ele conversando com o relógio, capture o tráfego:
+   - *por software*: monitor de porta serial (log hex) no mesmo Windows; ou
+   - *por hardware (recomendado)*: "tap" passivo com **dois adaptadores USB-serial só com o RX ligado** — um na linha TX do PC, outro na
+     linha TX do relógio (GND comum; nunca ligue TX do adaptador de captura). Depois:
+     `minitime-protocolo monitorar COMa COMb --saida captura.txt`
+2. **Fontes/decompilado e manual do fabricante** (ficam só na máquina do usuário; não vão para o repositório).
+3. **Teste ativo** — só como último recurso e depois de coletar e fazer backup das marcações, porque um comando desconhecido pode apagar dados do relógio.
+
+Para cada operação do programa antigo (acertar hora, enviar cartões, ler status...), faça **uma ação por vez** e anote o que fez e o horário;
+depois `minitime-protocolo decodificar captura.txt` mostra os quadros e `--resumo` agrupa por comando.
+
+### Tabela de comandos (preencher com as capturas)
+
+| Código | Direção | Dados | Significado | Origem/confiança |
+|---|---|---|---|---|
+| 0x0E | PC→relógio | vazio | pergunta marcações pendentes ("J") | decompilado, média |
+| 0x0F | PC→relógio | vazio | confirma o registro e pede o próximo ("K") | decompilado, média |
+| 0x1F | relógio→PC | 4 dígitos ASCII ou registro de 28 caracteres | contagem / registro de marcação | decompilado, média |
+| ? | PC→relógio | `ddmmyy`+hora? | acerto de data/hora | **a capturar** |
+| ? | PC→relógio | cartões | envio de cartões | **a capturar** |
+| ? | PC→relógio | — | status/versão do firmware | **a capturar** |

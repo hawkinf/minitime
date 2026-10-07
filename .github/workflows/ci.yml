@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    # WPF e o leitor de MDB (.NET Framework 4.8) só compilam no Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build
+        run: dotnet build MiniTime.sln -c Release --nologo
+      - name: Testes
+        run: dotnet test MiniTime.sln -c Release --no-build --nologo

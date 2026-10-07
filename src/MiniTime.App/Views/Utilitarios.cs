@@ -62,6 +62,7 @@ public sealed class ManutencaoView : UserControl
 
     private void Backup()
     {
+        if (!Sessao.Exigir(2)) return;
         var dlg = new SaveFileDialog { Title = "Salvar backup", Filter = "Banco MiniTime (*.db)|*.db", FileName = $"MiniTime-backup-{DateTime.Now:yyyyMMdd-HHmm}.db" };
         if (dlg.ShowDialog() != true) return;
         try
@@ -74,6 +75,7 @@ public sealed class ManutencaoView : UserControl
 
     private void Restaurar()
     {
+        if (!Sessao.Exigir(2)) return;
         var dlg = new OpenFileDialog { Title = "Escolha o backup", Filter = "Banco MiniTime (*.db)|*.db|Todos|*.*" };
         if (dlg.ShowDialog() != true) return;
         var erro = ManutencaoService.ValidarArquivoBackup(dlg.FileName);
@@ -92,6 +94,7 @@ public sealed class ManutencaoView : UserControl
 
     private void Reorganizar()
     {
+        if (!Sessao.Exigir(2)) return;
         try
         {
             var antes = new FileInfo(Sessao.Settings.CaminhoBanco).Length;
@@ -105,10 +108,12 @@ public sealed class ManutencaoView : UserControl
 
     private void Reparar()
     {
+        if (!Sessao.Exigir(2)) return;
         try
         {
             var r = new ManutencaoService(Sessao.Db).Reparar();
             Escrever(r.Integro ? "Banco íntegro." : "Foram encontrados problemas:");
+            if (r.CopiaSeguranca is not null) Escrever("  cópia de segurança antes do reparo: " + r.CopiaSeguranca);
             foreach (var c in r.Correcoes) Escrever("  corrigido: " + c);
             foreach (var p in r.Problemas) Escrever("  atenção: " + p);
             if (r.Correcoes.Count == 0 && r.Problemas.Count == 0) Escrever("Nada a corrigir.");

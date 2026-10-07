@@ -27,6 +27,8 @@ public partial class App : Application
         }
         var janela = new MainWindow();
         janela.Show();
+        if (Sessao.Usuario is null)
+            janela.Status("Acesso livre: nenhum usuário cadastrado. Crie um administrador em Arquivos → Senhas.");
         foreach (var a in e.Args.Where(a => a.StartsWith("--abrir=", StringComparison.Ordinal)))
             janela.AbrirPorChave(a["--abrir=".Length..]);
     }

@@ -30,6 +30,7 @@ public partial class ImportacaoMdbView : UserControl
 
     private async void BtnImportar_Click(object sender, RoutedEventArgs e)
     {
+        if (!Sessao.Exigir(2)) return;
         var arquivo = TxtArquivo.Text.Trim();
         if (!File.Exists(arquivo)) { Mensagens.Aviso("Selecione um arquivo MDB existente."); return; }
         var substituir = ChkSubstituir.IsChecked == true;

@@ -12,11 +12,23 @@ public class Repository<T> where T : new()
 
     public string Tabela => Mapa.Tabela;
 
+    // orderBy/where são fragmentos SQL escritos pelo código (nunca por usuários); o orderBy é validado para barrar uso indevido.
+    private static readonly System.Text.RegularExpressions.Regex OrderByValido =
+        new(@"^\s*[A-Za-z_][A-Za-z0-9_]*(\s+(ASC|DESC))?(\s*,\s*[A-Za-z_][A-Za-z0-9_]*(\s+(ASC|DESC))?)*\s*$",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static string Ordem(string? orderBy)
+    {
+        if (orderBy is null) return "";
+        if (!OrderByValido.IsMatch(orderBy)) throw new ArgumentException($"Ordenação inválida: '{orderBy}'.", nameof(orderBy));
+        return " ORDER BY " + orderBy;
+    }
+
     public List<T> Todos(string? orderBy = null)
-        => Db.Query<T>($"SELECT * FROM {Mapa.Tabela}" + (orderBy is null ? "" : " ORDER BY " + orderBy));
+        => Db.Query<T>($"SELECT * FROM {Mapa.Tabela}" + Ordem(orderBy));
 
     public List<T> Onde(string where, string? orderBy = null, params (string, object?)[] ps)
-        => Db.Query<T>($"SELECT * FROM {Mapa.Tabela} WHERE {where}" + (orderBy is null ? "" : " ORDER BY " + orderBy), ps);
+        => Db.Query<T>($"SELECT * FROM {Mapa.Tabela} WHERE {where}" + Ordem(orderBy), ps);
 
     public T? Obter(params object[] chave)
     {
@@ -56,6 +68,7 @@ public class Repository<T> where T : new()
     public int Atualizar(T e)
     {
         var cols = Mapa.Colunas.Where(p => !Mapa.Chaves.Contains(p)).ToArray();
+        if (cols.Length == 0) return Existe(Mapa.Chaves.Select(k => k.GetValue(e)!).ToArray()) ? 1 : 0; // só chaves: nada a atualizar
         var sql = $"UPDATE {Mapa.Tabela} SET {string.Join(",", cols.Select(p => $"{p.Name} = @{p.Name}"))} WHERE {string.Join(" AND ", Mapa.Chaves.Select(k => $"{k.Name} = @{k.Name}"))}";
         return Db.Execute(sql, Mapa.Colunas.Select(p => (p.Name, p.GetValue(e))).ToArray());
     }

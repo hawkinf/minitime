@@ -51,6 +51,7 @@ public sealed class SenhasView : UserControl
 
     private void Novo()
     {
+        if (!Sessao.Exigir(2)) return;
         if (Dialogos_Usuario.Pedir("Novo usuário", pedirNome: true, pedirNivel: true) is not { } r) return;
         if (Sessao.Repos.Usuarios.Existe(r.Nome)) { Mensagens.Aviso("Já existe um usuário com este nome."); return; }
         // o primeiro usuário precisa ser administrador, senão ninguém conseguiria gerenciar os demais
@@ -61,6 +62,7 @@ public sealed class SenhasView : UserControl
 
     private void Alterar()
     {
+        if (!Sessao.Exigir(2)) return;
         if (Selecionado is not { } u) { Mensagens.Aviso("Selecione um usuário."); return; }
         if (Dialogos_Usuario.Pedir($"Nova senha de {u.Nome}", pedirNome: false, pedirNivel: false) is not { } r) return;
         u.SenhaHash = Senha.Hash(r.Senha);
@@ -70,6 +72,7 @@ public sealed class SenhasView : UserControl
 
     private void MudarNivel()
     {
+        if (!Sessao.Exigir(2)) return;
         if (Selecionado is not { } u) { Mensagens.Aviso("Selecione um usuário."); return; }
         var atual = u.Nivel;
         var proximo = (atual + 1) % 3;
@@ -82,6 +85,7 @@ public sealed class SenhasView : UserControl
 
     private void Excluir()
     {
+        if (!Sessao.Exigir(2)) return;
         if (Selecionado is not { } u) { Mensagens.Aviso("Selecione um usuário."); return; }
         if (u.Nivel == 2 && AdministradoresRestantes(u.Nome) == 0 && Sessao.Repos.Usuarios.Contar() > 1)
         { Mensagens.Aviso("É preciso manter ao menos um administrador."); return; }
@@ -116,7 +120,7 @@ internal static class Dialogos_Usuario
         ok.Click += (_, _) =>
         {
             if (pedirNome && string.IsNullOrWhiteSpace(nome.Text)) { Mensagens.Aviso("Informe o nome do usuário."); return; }
-            if (s1.Password.Length < 4) { Mensagens.Aviso("A senha deve ter pelo menos 4 caracteres."); return; }
+            if (PoliticaSenha.Validar(s1.Password) is { } fraca) { Mensagens.Aviso(fraca); return; }
             if (s1.Password != s2.Password) { Mensagens.Aviso("As senhas não conferem."); return; }
             w.DialogResult = true;
         };
@@ -143,15 +147,24 @@ public static class Login
         p.Children.Add(new TextBlock { Text = "Usuário:" }); p.Children.Add(nome);
         p.Children.Add(new TextBlock { Text = "Senha:" }); p.Children.Add(senha);
         Usuario? entrou = null;
-        var tentativas = 0;
+        var limite = LimitadorTentativas.Restaurar(Sessao.Settings.FalhasLogin, Sessao.Settings.LoginBloqueadoAte);
+        void Persistir() { Sessao.Settings.FalhasLogin = limite.Falhas; Sessao.Settings.LoginBloqueadoAte = limite.BloqueadoAte; Sessao.Settings.Salvar(); }
         var ok = new Button { Content = "Entrar", IsDefault = true, MinWidth = 80, Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(10, 4, 10, 4) };
         var sair = new Button { Content = "Sair", IsCancel = true, MinWidth = 80, Padding = new Thickness(10, 4, 10, 4) };
         ok.Click += (_, _) =>
         {
+            if (limite.Bloqueado(DateTime.Now))
+            {
+                Mensagens.Aviso($"Acesso bloqueado por excesso de tentativas. Tente novamente em {Math.Ceiling(limite.Restante(DateTime.Now).TotalSeconds):N0} s.");
+                senha.Clear();
+                return;
+            }
             var u = Sessao.Repos.Usuarios.Obter(nome.Text.Trim());
-            if (u is not null && Senha.Confere(senha.Password, u.SenhaHash)) { entrou = u; w.DialogResult = true; return; }
+            if (u is not null && Senha.Confere(senha.Password, u.SenhaHash)) { limite.RegistrarSucesso(); Persistir(); entrou = u; w.DialogResult = true; return; }
             senha.Clear();
-            if (++tentativas >= 3) { Mensagens.Aviso("Número máximo de tentativas excedido."); w.DialogResult = false; return; }
+            limite.RegistrarFalha(DateTime.Now);
+            Persistir();
+            if (limite.Bloqueado(DateTime.Now)) { Mensagens.Aviso("Número máximo de tentativas excedido. O acesso ficará bloqueado por alguns instantes."); w.DialogResult = false; return; }
             Mensagens.Aviso("Usuário ou senha inválidos.");
         };
         p.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, sair } });

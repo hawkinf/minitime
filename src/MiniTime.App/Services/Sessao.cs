@@ -1,5 +1,7 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using MiniTime.Core.Seguranca;
 using MiniTime.Data;
 
 namespace MiniTime.App.Services;
@@ -9,8 +11,21 @@ public sealed class AppSettings
 {
     public string CaminhoBanco { get; set; } = Path.Combine(Pastas.Dados, "minitime.db");
     public string? PortaSerial { get; set; }
-    /// <summary>Senha do MDB legado, guardada só neste computador (nunca no repositório).</summary>
-    public string? SenhaMdb { get; set; }
+    /// <summary>Senha do MDB legado: guardada só neste computador e cifrada com DPAPI (nunca em texto puro nem no repositório).</summary>
+    [JsonIgnore]
+    public string? SenhaMdb
+    {
+        get => SegredoLocal.Desproteger(SenhaMdbProtegida);
+        set => SenhaMdbProtegida = SegredoLocal.Proteger(value);
+    }
+    public string? SenhaMdbProtegida { get; set; }
+    /// <summary>Só para ler arquivos de versões antigas, que guardavam a senha em texto puro; migrada e apagada ao carregar.</summary>
+    [JsonPropertyName("SenhaMdb"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SenhaMdbLegada { get; set; }
+
+    /// <summary>Falhas de login seguidas e fim do bloqueio; persistidos para que reabrir o programa não zere o limite.</summary>
+    public int FalhasLogin { get; set; }
+    public DateTime? LoginBloqueadoAte { get; set; }
 
     private static string Arquivo => Path.Combine(Pastas.Config, "settings.json");
 
@@ -19,7 +34,16 @@ public sealed class AppSettings
         try
         {
             if (File.Exists(Arquivo))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Arquivo)) ?? new();
+            {
+                var cfg = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Arquivo)) ?? new();
+                if (!string.IsNullOrEmpty(cfg.SenhaMdbLegada))
+                {
+                    cfg.SenhaMdb = cfg.SenhaMdbLegada;
+                    cfg.SenhaMdbLegada = null;
+                    cfg.Salvar(); // regrava já sem a senha em texto puro
+                }
+                return cfg;
+            }
         }
         catch (Exception ex) when (ex is IOException or JsonException)
         {
@@ -31,7 +55,10 @@ public sealed class AppSettings
     public void Salvar()
     {
         Directory.CreateDirectory(Pastas.Config);
-        File.WriteAllText(Arquivo, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        // Escrita atômica: grava num temporário e troca; uma queda no meio não corrompe o settings.json.
+        var temporario = Arquivo + ".tmp";
+        File.WriteAllText(temporario, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(temporario, Arquivo, overwrite: true);
     }
 }
 
@@ -70,6 +97,14 @@ public static class Sessao
     public static Repositorios Repos { get; private set; } = null!;
     /// <summary>Usuário autenticado (null = acesso livre, nenhum usuário cadastrado).</summary>
     public static MiniTime.Core.Models.Usuario? Usuario { get; set; }
+
+    /// <summary>Confere o nível do usuário logado; avisa e devolve false se for insuficiente (a regra vale além do que o menu esconde).</summary>
+    public static bool Exigir(int nivel)
+    {
+        if (Acesso.Permite(Usuario, nivel)) return true;
+        Mensagens.Aviso("Seu nível de acesso não permite esta operação.");
+        return false;
+    }
 
     public static void Iniciar()
     {

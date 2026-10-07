@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using MiniTime.Core.Apuracao;
 using MiniTime.Core.Models;
 using MiniTime.Core.Util;
@@ -15,14 +16,16 @@ public sealed class ColetaService(MiniTimeDb db)
         var limite = (agora ?? DateTime.Now).AddDays(1);
         int recebidas = 0, gravadas = 0, repetidas = 0, invalidas = 0;
         using var c = db.Abrir();
-        using var tx = c.BeginTransaction();
+        // BEGIN IMMEDIATE: a checagem de duplicidade e o INSERT acontecem sob o mesmo bloqueio de escrita (duas coletas simultâneas não duplicam).
+        using var tx = c.BeginTransaction(deferred: false);
         foreach (var (cartao, dh) in registros)
         {
             recebidas++;
             var dt = new DateTime(dh.Year, dh.Month, dh.Day, dh.Hour, dh.Minute, 0);
             if (dt.Year < 1990 || dt > limite) { invalidas++; continue; }
             var cracha = CodigoCartao.Normalizar(cartao);
-            var existe = MiniTimeDb.Query<Marcacao>(c, tx, "SELECT * FROM Marcacao WHERE Cracha=@c AND DataHora=@d LIMIT 1", ("c", cracha), ("d", dt)).Count > 0;
+            // Duplicata = mesma batida coletada (mesmo critério do "Reparar"); uma marcação manual no mesmo minuto é outra coisa.
+            var existe = ExisteColetada(c, tx, cracha, dt);
             if (existe) { repetidas++; continue; }
             MiniTimeDb.Execute(c, tx,
                 "INSERT INTO Marcacao(Cracha, DataHora, Terminal, EntradaSaida, Situacao, Tipo, Divergencia, SaiuMarcacao, Justificativa) VALUES(@c,@d,@t,0,0,@tp,0,0,0)",
@@ -34,5 +37,16 @@ public sealed class ColetaService(MiniTimeDb db)
         }
         tx.Commit();
         return new ResultadoColeta(recebidas, gravadas, repetidas, invalidas);
+    }
+
+    private static bool ExisteColetada(SqliteConnection c, SqliteTransaction tx, string cracha, DateTime dt)
+    {
+        using var cmd = c.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = "SELECT 1 FROM Marcacao WHERE Cracha=@c AND DataHora=@d AND Tipo=@tp LIMIT 1";
+        cmd.Parameters.AddWithValue("@c", cracha);
+        cmd.Parameters.AddWithValue("@d", MiniTimeDb.Valor(dt));
+        cmd.Parameters.AddWithValue("@tp", TipoMarcacao.Coletada);
+        return cmd.ExecuteScalar() is not null;
     }
 }
